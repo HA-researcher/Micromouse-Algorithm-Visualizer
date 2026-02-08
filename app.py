@@ -197,17 +197,16 @@ def render_grid_html(maze, path_set, visited_set, dist_map=None, show_numbers=Fa
                 d = dist_map[y, x]
                 if d != -1 and cell_type != WALL:
                     text = str(d)
+
+        # スタイルを1行の文字列として定義
+            style = (f"width:{cell_size}px; height:{cell_size}px; "
+                     f"background-color:{color}; border: 1px solid #ddd; "
+                     "display: flex; align-items: center; justify-content: center; "
+                     f"font-size: {font_size}px; color: #000;")
             
-            html += f'''
-                <div style="
-                    width:{cell_size}px; height:{cell_size}px; 
-                    background-color:{color}; 
-                    border: 1px solid #ddd;
-                    display: flex; align-items: center; justify_content: center;
-                    font-size: {font_size}px; color: #000;
-                ">
-                {text}
-                </div>'''
+            # HTMLタグを隙間なく連結
+            html += f'<div style="{style}">{text}</div>'
+            
         html += '</div>'
     html += '</div>'
     return html
