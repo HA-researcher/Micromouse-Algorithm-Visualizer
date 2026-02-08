@@ -260,7 +260,7 @@ def main():
             elif "A*" in algo_type:
                 st.success("**A* (エースター探索)**\n\n「ゴールへの推定距離」を使って賢く探索します。計算コストが低いです。")
             else:
-                st.primary("**足立法 (Adachi's Method)**\n\nGoalからStartに向かって「歩数マップ」を作ります。マウスは数字が小さい方へ進みます。")
+                st.error("**足立法 (Adachi's Method)**\n\nGoalからStartに向かって「歩数マップ」を作ります。マウスは数字が小さい方へ進みます。")
 
             if st.button("探索開始 (Run)"):
                 start_time = time.time()
