@@ -19,7 +19,7 @@ COLORS = {
     START: "#00FF00",   # 緑: スタート
     GOAL: "#FF0000",    # 赤: ゴール
     PATH: "#FFFF00",    # 黄: 最短経路
-    VISITED: "#CCEOFF"  # 薄青: 探索済み
+    VISITED: "#CCE0FF"  # 薄青: 探索済み
 }
 
 # --- 迷路生成 ---
