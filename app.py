@@ -186,8 +186,8 @@ def render_grid_html(maze, path_set, visited_set, dist_map=None, show_numbers=Fa
 def main():
     st.set_page_config(page_title="MicroMouse Visualizer", layout="wide")
     
-    st.title("🐭 MicroMouse Algorithm Visualizer")
-    st.write("法政大学 理工学部 マイクロマウス活動：探索アルゴリズム比較デモ")
+    st.title("MicroMouse Algorithm Visualizer")
+    st.write("マイクロマウス活動：探索アルゴリズム比較デモ")
 
     # --- Sidebar ---
     with st.sidebar:
