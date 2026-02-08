@@ -223,6 +223,8 @@ def main():
         grid_size = st.slider("迷路サイズ", 10, 40, 20)
         wall_prob = st.slider("壁の密度", 0.0, 0.4, 0.25)
         
+        speed = st.slider("アニメーション速度 (秒)", 0.00, 0.10, 0.02, step=0.01)
+        
         st.subheader("アルゴリズム選択")
         algo_type = st.radio(
             "Mode",
@@ -297,7 +299,7 @@ def main():
                     # if len(visited_so_far) % 2 == 0: 
                     html = render_grid_html(st.session_state.maze, set(), visited_so_far, current_dist_map, show_numbers_opt)
                     grid_placeholder.markdown(html, unsafe_allow_html=True)
-                    time.sleep(0.02) # ★ここでスピード調整 (0.01~0.05くらい)
+                    time.sleep(speed) # ★ここでスピード調整 (0.01~0.05くらい)
 
                 # 3. 最後に「最短経路(黄色)」を重ねて完了表示
                 st.session_state.path = path
