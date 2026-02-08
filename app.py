@@ -244,14 +244,21 @@ def main():
         st.session_state.solved = False
 
     # --- Tab 1: シミュレータ ---
+    # --- Tab 1: シミュレータ ---
     with tab_sim:
         col1, col2 = st.columns([2, 1])
         h, w = st.session_state.maze.shape
         start, goal = (1, 1), (h-2, w-2)
 
+        # ★変更点1: 描画エリア(placeholder)を先に作っておく
+        with col1:
+            st.subheader("Visualizer")
+            grid_placeholder = st.empty()
+
         with col2:
             st.subheader("実行パネル")
             
+            # (中略: アルゴリズム説明のif文などはそのまま)
             if "BFS" in algo_type:
                 st.info("**BFS (幅優先探索)**\n\nStartから全方位にしらみつぶしに探します。最短経路を保証します。")
             elif "DFS" in algo_type:
@@ -261,10 +268,12 @@ def main():
             else:
                 st.error("**足立法 (Adachi's Method)**\n\nGoalからStartに向かって「歩数マップ」を作ります。マウスは数字が小さい方へ進みます。")
 
+            # ★変更点2: ボタンを押した時の処理
             if st.button("探索開始 (Run)"):
                 start_time = time.time()
                 dist_map_result = None
                 
+                # 1. まず計算する
                 if "足立法" in algo_type:
                     path, visited, dist_map_result = solve_adachi(st.session_state.maze, start, goal)
                 elif "BFS" in algo_type:
@@ -275,31 +284,46 @@ def main():
                     path, visited, _ = solve_astar(st.session_state.maze, start, goal)
                 
                 elapsed = (time.time() - start_time) * 1000
+                
+                # 2. アニメーション実行 (探索の過程を描画)
+                visited_so_far = set()
+                # 足立法の時はdist_mapを表示したいので最初から渡す
+                current_dist_map = dist_map_result if "足立法" in algo_type else None
+
+                # visitedリストを順番になぞって描画更新
+                for v_cell in visited:
+                    visited_so_far.add(v_cell)
+                    # 少し処理を間引く(毎回描画すると遅すぎる場合)
+                    # if len(visited_so_far) % 2 == 0: 
+                    html = render_grid_html(st.session_state.maze, set(), visited_so_far, current_dist_map, show_numbers_opt)
+                    grid_placeholder.markdown(html, unsafe_allow_html=True)
+                    time.sleep(0.02) # ★ここでスピード調整 (0.01~0.05くらい)
+
+                # 3. 最後に「最短経路(黄色)」を重ねて完了表示
                 st.session_state.path = path
                 st.session_state.visited = visited
                 st.session_state.dist_map = dist_map_result
                 st.session_state.solved = True
                 st.session_state.stats = (len(path), len(visited), elapsed)
 
+            # 結果表示パネル
             if st.session_state.solved:
                 p_len, v_count, t_ms = st.session_state.stats
                 st.metric("最短経路ステップ数", f"{p_len} steps")
                 st.metric("探索したマスの数", f"{v_count} cells")
                 st.metric("計算時間", f"{t_ms:.2f} ms")
 
-        with col1:
-            st.subheader("Visualizer")
-            path_set = set(st.session_state.path) if st.session_state.solved else set()
-            visited_set = set(st.session_state.visited) if st.session_state.solved else set()
-            
-            # 足立法のときだけdist_mapを渡す
-            d_map = st.session_state.get('dist_map', None)
-            
-            st.markdown(
-                render_grid_html(st.session_state.maze, path_set, visited_set, d_map, show_numbers_opt), 
-                unsafe_allow_html=True
-            )
-
+        # ★変更点3: ボタンを押していない時(初期状態や再描画時)の表示
+        # solvedなら結果を、そうでなければ初期状態を表示
+        path_set = set(st.session_state.path) if st.session_state.solved else set()
+        visited_set = set(st.session_state.visited) if st.session_state.solved else set()
+        d_map = st.session_state.get('dist_map', None)
+        
+        # アニメーション以外のタイミングで表示を維持するため
+        grid_placeholder.markdown(
+            render_grid_html(st.session_state.maze, path_set, visited_set, d_map, show_numbers_opt), 
+            unsafe_allow_html=True
+        )
     # --- Tab 2: サークル紹介 ---
     with tab_info:
         st.title("マイクロマウスサークルへようこそ！")
