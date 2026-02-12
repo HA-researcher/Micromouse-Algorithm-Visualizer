@@ -266,7 +266,7 @@ def main():
             elif "DFS" in algo_type:
                 st.warning("**DFS (深さ優先探索)**\n\n行けるところまで突っ走ります。最短経路は保証されません。")
             elif "A*" in algo_type:
-                st.success("**A* (エースター探索)**\n\n「ゴールへの推定距離」を使って賢く探索します。計算コストが低いです。")
+                st.success("**A\\* (エースター探索)**\n\n「ゴールへの推定距離」を使って賢く探索します。計算コストが低いです。")
             else:
                 st.error("**足立法 (Adachi's Method)**\n\nGoalからStartに向かって「歩数マップ」を作ります。マウスは数字が小さい方へ進みます。")
 
