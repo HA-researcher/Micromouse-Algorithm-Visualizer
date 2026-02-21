@@ -23,19 +23,37 @@ COLORS = {
 }
 
 # --- 迷路生成 ---
-def init_maze(size: int, wall_prob: float = 0.2) -> np.ndarray:
+def init_maze(size: int, wall_prob: float = 0.2, seed: int = None) -> np.ndarray:
+    """
+    シード値を指定して迷路を生成する。
+    seedが指定されている場合、numpyの乱数生成器の状態を固定し、再現性を確保する。
+    """
+    if seed is not None:
+        np.random.seed(seed)
+        
     maze = np.zeros((size, size), dtype=int)
     maze[0, :] = maze[-1, :] = WALL
     maze[:, 0] = maze[:, -1] = WALL
     inner_area = (slice(1, -1), slice(1, -1))
+    
+    # 乱数による壁の配置
     maze[inner_area] = np.random.choice([EMPTY, WALL], size=(size-2, size-2), p=[1-wall_prob, wall_prob])
+    
+    # スタートとゴールの設定
     maze[1, 1] = START
     maze[size-2, size-2] = GOAL
+    
+    # スタート・ゴール周辺は必ず空ける（閉じ込め防止）
     maze[1, 2] = maze[2, 1] = EMPTY
     maze[size-2, size-3] = maze[size-3, size-2] = EMPTY
+    
+    # 乱数シードをリセット（他の乱数処理に影響を与えないため、必要に応じて）
+    # np.random.seed(None) 
+    
     return maze
 
 # --- アルゴリズム実装 ---
+# (アルゴリズム部分は変更なし)
 
 def solve_bfs(maze, start, goal):
     """幅優先探索 (Start -> Goal)"""
@@ -120,14 +138,12 @@ def solve_astar(maze, start, goal):
 def solve_adachi(maze, start, goal):
     """
     足立法 (Adachi's Method)
-    ゴールからの歩数マップ(Step Map)を作成し、数字が小さくなる方へ進む。
     """
     h, w = maze.shape
-    # 1. ゴールからの距離マップを作成 (BFS from Goal)
     queue = deque([goal])
     dist_map = np.full((h, w), -1)
     dist_map[goal] = 0
-    visited_history = [] # マップ作成の過程
+    visited_history = [] 
 
     while queue:
         cy, cx = queue.popleft()
@@ -139,10 +155,9 @@ def solve_adachi(maze, start, goal):
                 dist_map[ny, nx] = dist_map[cy, cx] + 1
                 queue.append((ny, nx))
     
-    # 2. スタートからゴールへ、数字が小さくなる方へ進む（経路復元）
     path = []
     curr = start
-    if dist_map[start] != -1: #到達可能なら
+    if dist_map[start] != -1: 
         path.append(curr)
         while curr != goal:
             cy, cx = curr
@@ -151,7 +166,6 @@ def solve_adachi(maze, start, goal):
             for dy, dx in [(-1,0), (1,0), (0,-1), (0,1)]:
                 ny, nx = cy+dy, cx+dx
                 if 0 <= ny < h and 0 <= nx < w:
-                    # 隣が「今の距離 - 1」ならそこが進むべき道
                     if dist_map[ny, nx] == current_dist - 1:
                         curr = (ny, nx)
                         path.append(curr)
@@ -174,7 +188,6 @@ def render_grid_html(maze, path_set, visited_set, dist_map=None, show_numbers=Fa
     h, w = maze.shape
     html = '<div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; font-family: monospace;">'
     
-    # マスサイズ調整: 数字表示ありなら少し大きく
     cell_size = 24 if show_numbers else 20
     font_size = 10 if show_numbers else 0
     
@@ -184,27 +197,23 @@ def render_grid_html(maze, path_set, visited_set, dist_map=None, show_numbers=Fa
             cell_type = maze[y, x]
             color = COLORS[cell_type]
             
-            # 色の優先順位: 経路 > 探索済み > デフォルト
             if (y, x) in path_set: color = COLORS[PATH]
             elif (y, x) in visited_set: color = COLORS[VISITED]
             
             if cell_type == START: color = COLORS[START]
             if cell_type == GOAL: color = COLORS[GOAL]
             
-            # 数字表示 (足立法用)
             text = ""
             if show_numbers and dist_map is not None:
                 d = dist_map[y, x]
                 if d != -1 and cell_type != WALL:
                     text = str(d)
 
-        # スタイルを1行の文字列として定義
             style = (f"width:{cell_size}px; height:{cell_size}px; "
                      f"background-color:{color}; border: 1px solid #ddd; "
                      "display: flex; align-items: center; justify-content: center; "
                      f"font-size: {font_size}px; color: #000;")
             
-            # HTMLタグを隙間なく連結
             html += f'<div style="{style}">{text}</div>'
             
         html += '</div>'
@@ -217,42 +226,49 @@ def main():
 
     tab_sim, tab_info = st.tabs(["🧩 アルゴリズム実験室", "📢 サークル紹介"])
 
-    # 共通サイドバー
     with st.sidebar:
         st.header("設定 (Settings)")
         grid_size = st.slider("迷路サイズ", 10, 40, 20)
         wall_prob = st.slider("壁の密度", 0.0, 0.4, 0.25)
-        
         speed = st.slider("アニメーション速度 (秒)", 0.00, 0.10, 0.02, step=0.01)
         
+        st.markdown("---")
+        st.subheader("生成コントロール")
+        
+        # ★追加: シード値による生成管理UI
+        use_seed = st.checkbox("シード値を固定する", value=False)
+        seed_value = st.number_input("シード値", min_value=0, max_value=999999, value=42, disabled=not use_seed)
+        
+        st.markdown("---")
         st.subheader("アルゴリズム選択")
         algo_type = st.radio(
             "Mode",
             ["足立法 (Adachi's Method)", "BFS (幅優先探索)", "DFS (深さ優先探索)", "A* (エースター探索)"]
         )
         
-        # 足立法選択時のみ表示するオプション
         show_numbers_opt = False
         if "足立法" in algo_type:
             show_numbers_opt = st.checkbox("歩数マップを表示 (Show Steps)", value=True)
         
-        if st.button("迷路再生成 / Reset"):
-            st.session_state.maze = init_maze(grid_size, wall_prob)
+        # 迷路再生成時の処理
+        if st.button("迷路再生成 / Reset", type="primary"):
+            current_seed = seed_value if use_seed else None
+            st.session_state.maze = init_maze(grid_size, wall_prob, current_seed)
             st.session_state.solved = False
             if 'dist_map' in st.session_state: del st.session_state.dist_map
 
+    # 初回起動時、またはセッションに迷路がない場合の初期化
     if 'maze' not in st.session_state:
-        st.session_state.maze = init_maze(grid_size, wall_prob)
+        current_seed = seed_value if use_seed else None
+        st.session_state.maze = init_maze(grid_size, wall_prob, current_seed)
         st.session_state.solved = False
 
-    # --- Tab 1: シミュレータ ---
     # --- Tab 1: シミュレータ ---
     with tab_sim:
         col1, col2 = st.columns([2, 1])
         h, w = st.session_state.maze.shape
         start, goal = (1, 1), (h-2, w-2)
 
-        # ★変更点1: 描画エリア(placeholder)を先に作っておく
         with col1:
             st.subheader("Visualizer")
             grid_placeholder = st.empty()
@@ -260,7 +276,6 @@ def main():
         with col2:
             st.subheader("実行パネル")
             
-            # (中略: アルゴリズム説明のif文などはそのまま)
             if "BFS" in algo_type:
                 st.info("**BFS (幅優先探索)**\n\nStartから全方位にしらみつぶしに探します。最短経路を保証します。")
             elif "DFS" in algo_type:
@@ -270,67 +285,55 @@ def main():
             else:
                 st.error("**足立法 (Adachi's Method)**\n\nGoalからStartに向かって「歩数マップ」を作ります。マウスは数字が小さい方へ進みます。")
 
-            # ★変更点2: ボタンを押した時の処理
             if st.button("探索開始 (Run)"):
                 start_time = time.time()
                 dist_map_result = None
                 
-                # 1. まず計算する
                 if "足立法" in algo_type:
                     path, visited, dist_map_result = solve_adachi(st.session_state.maze, start, goal)
                 elif "BFS" in algo_type:
                     path, visited, _ = solve_bfs(st.session_state.maze, start, goal)
                 elif "DFS" in algo_type:
                     path, visited, _ = solve_dfs(st.session_state.maze, start, goal)
-                else: # A*
+                else: 
                     path, visited, _ = solve_astar(st.session_state.maze, start, goal)
                 
                 elapsed = (time.time() - start_time) * 1000
                 
-                # 2. アニメーション実行 (探索の過程を描画)
                 visited_so_far = set()
-                # 足立法の時はdist_mapを表示したいので最初から渡す
                 current_dist_map = dist_map_result if "足立法" in algo_type else None
 
-                # visitedリストを順番になぞって描画更新
                 for v_cell in visited:
                     visited_so_far.add(v_cell)
-                    # 少し処理を間引く(毎回描画すると遅すぎる場合)
-                    # if len(visited_so_far) % 2 == 0: 
                     html = render_grid_html(st.session_state.maze, set(), visited_so_far, current_dist_map, show_numbers_opt)
                     grid_placeholder.markdown(html, unsafe_allow_html=True)
-                    time.sleep(speed) # ★ここでスピード調整 (0.01~0.05くらい)
+                    time.sleep(speed) 
 
-                # 3. 最後に「最短経路(黄色)」を重ねて完了表示
                 st.session_state.path = path
                 st.session_state.visited = visited
                 st.session_state.dist_map = dist_map_result
                 st.session_state.solved = True
                 st.session_state.stats = (len(path), len(visited), elapsed)
 
-            # 結果表示パネル
             if st.session_state.solved:
                 p_len, v_count, t_ms = st.session_state.stats
                 st.metric("最短経路ステップ数", f"{p_len} steps")
                 st.metric("探索したマスの数", f"{v_count} cells")
                 st.metric("計算時間", f"{t_ms:.2f} ms")
 
-        # ★変更点3: ボタンを押していない時(初期状態や再描画時)の表示
-        # solvedなら結果を、そうでなければ初期状態を表示
         path_set = set(st.session_state.path) if st.session_state.solved else set()
         visited_set = set(st.session_state.visited) if st.session_state.solved else set()
         d_map = st.session_state.get('dist_map', None)
         
-        # アニメーション以外のタイミングで表示を維持するため
         grid_placeholder.markdown(
             render_grid_html(st.session_state.maze, path_set, visited_set, d_map, show_numbers_opt), 
             unsafe_allow_html=True
         )
+
     # --- Tab 2: サークル紹介 ---
     with tab_info:
         st.title("マイクロマウスサークルへようこそ！")
         
-        # カラム分けは残すが、c2（右側）の中身は空にする
         c1, c2 = st.columns(2)
         with c1:
             st.image("https://placehold.co/600x400/222/FFF?text=MicroMouse+Robot+Image", caption="自作マウス機体例")
@@ -339,8 +342,9 @@ def main():
             16×16マスの迷路を自律走行ロボットが走り、ゴールまでのタイムを競う競技です。
             **「ハードウェア設計」 × 「ソフトウェア制御」** の両方が学べる、エンジニアへの近道です！
             """)
-        
-        # c2にはサークルの予定などを追記予定
+        #c2には大学のサークル紹介など
+
 
 if __name__ == "__main__":
     main()
+    
